@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Local Flix</title>
+<title>Video Gallery</title>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -100,7 +100,7 @@ main{flex:1;padding:24px;max-width:1600px;width:100%;margin:0 auto}
 <header>
   <div class="header-left">
     <button id="backBtn" class="btn-icon hidden" title="Back">←</button>
-    <div class="header-title">🎬 Local Flix</div>
+    <div class="header-title">🎬 Video Gallery</div>
   </div>
   <div class="header-right"><button id="refreshBtn" class="btn btn-secondary">🔄 Refresh</button></div>
 </header>
@@ -325,10 +325,23 @@ function setupObserver() {
   document.querySelectorAll('.video-card').forEach(c => S.observer.observe(c));
 }
 
+// --- FIXED: Fetches metadata to correctly populate duration for cached videos ---
 function loadThumbs(card) {
     if (card.dataset.loaded) return;
     const base = card.dataset.base;
     const v = S.videos.find(x => x.baseName === base); if(!v) return;
+
+    // If duration is 0, fetch the JSON to get the real length
+    if (!v.duration) {
+        fetch(`/api/galleries/${encodeURIComponent(S.gallery)}/tml/${encodeURIComponent(base)}.json`)
+            .then(r => r.json())
+            .then(meta => {
+                v.duration = meta.duration || 0;
+                const durEl = card.querySelector('.card-duration');
+                if (durEl) durEl.textContent = fmt(v.duration);
+            }).catch(() => {});
+    }
+
     let loadedCount = 0;
     for (let i = 1; i <= 5; i++) {
         const url = thumbUrl(base, i);
@@ -389,11 +402,18 @@ async function flushBatch() {
   if (pendingBatch.length) batchTimer = setTimeout(flushBatch, 50);
 }
 
+function isAnyVideoPlaying() {
+  const modalVideo = document.getElementById('modalVideo');
+  if (modalVideo && !modalVideo.paused && !modalVideo.ended && modalVideo.readyState >= 2) return true;
+  if (activePreview && !activePreview.paused && !activePreview.ended && activePreview.readyState >= 2) return true;
+  return false;
+}
+
 let cycleInterval = null;
 function startGlobalCycle() {
   if (cycleInterval) return;
   cycleInterval = setInterval(() => {
-    if (S.modalOpen) return;
+    if (isAnyVideoPlaying()) return;
     document.querySelectorAll('.video-card').forEach(card => {
       if (card.dataset.hovering==='1' || !card.dataset.loaded) return;
       cycleThumb(card, false);

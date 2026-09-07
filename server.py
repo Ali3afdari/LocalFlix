@@ -75,24 +75,25 @@ def background_worker(gallery):
             state['ready'].add(base)
 
 def extract_base_from_tml_filename(filename):
-    """
-    Correctly extracts the video baseName from a .tml filename.
-    - 'my_video_1.jpg'  -> 'my_video'  (strip _N.jpg)
-    - 'my_video.json'   -> 'my_video'  (strip .json)
-    - 'faces_db.json'   -> None        (special file, skip)
-    """
-    if filename == 'faces_db.json':
-        return None
-    if filename.endswith('.json'):
-        return os.path.splitext(filename)[0]
+    if filename == 'faces_db.json': return None
+    if filename.endswith('.json'): return os.path.splitext(filename)[0]
     if filename.endswith('.jpg'):
-        # Remove .jpg -> 'my_video_1', then rsplit last _N -> 'my_video'
         no_ext = os.path.splitext(filename)[0]
         parts = no_ext.rsplit('_', 1)
-        if len(parts) == 2 and parts[1].isdigit():
-            return parts[0]
+        if len(parts) == 2 and parts[1].isdigit(): return parts[0]
         return no_ext
     return None
+
+# --- NEW: Validates JSON structure to detect corruption ---
+def is_meta_valid(meta_file):
+    if not os.path.exists(meta_file): return False
+    try:
+        with open(meta_file, 'r') as f:
+            data = json.load(f)
+        # Ensure essential keys exist and are valid
+        return 'duration' in data and 'video_name' in data and data['duration'] > 0
+    except:
+        return False
 
 def sync_gallery(gallery):
     state = get_state(gallery)
@@ -105,14 +106,11 @@ def sync_gallery(gallery):
             if os.path.splitext(f)[1].lower() in VIDEO_EXT:
                 actual_videos[os.path.splitext(f)[0]] = f
 
-    # FIXED: Orphan cleanup now correctly handles underscores in filenames
     if os.path.exists(tml_path):
         for f in os.listdir(tml_path):
-            if not (f.endswith('.json') or f.endswith('.jpg')):
-                continue
+            if not (f.endswith('.json') or f.endswith('.jpg')): continue
             base = extract_base_from_tml_filename(f)
-            if base is None:
-                continue  # Skip special files like faces_db.json
+            if base is None: continue
             if base not in actual_videos:
                 try: os.remove(os.path.join(tml_path, f))
                 except: pass
@@ -122,11 +120,18 @@ def sync_gallery(gallery):
         for base, filename in actual_videos.items():
             meta_file = os.path.join(tml_path, f"{base}.json")
             thumb_1 = os.path.join(tml_path, f"{base}_1.jpg")
-            if os.path.exists(meta_file) and os.path.exists(thumb_1):
-                state['ready'].add(base)
 
-            if base not in state['ready'] and base not in state['processing'] and not any(q['base'] == base for q in state['queue']):
-                state['queue'].append({'base': base, 'name': filename})
+            # Check if thumb exists AND metadata is valid
+            if os.path.exists(thumb_1) and is_meta_valid(meta_file):
+                state['ready'].add(base)
+            else:
+                # If metadata is corrupted/missing, delete it and queue for regeneration
+                if os.path.exists(meta_file):
+                    try: os.remove(meta_file)
+                    except: pass
+
+                if base not in state['processing'] and not any(q['base'] == base for q in state['queue']):
+                    state['queue'].append({'base': base, 'name': filename})
 
         if not state['worker_running'] and state['queue']:
             state['worker_running'] = True
@@ -195,5 +200,5 @@ def api_video(gallery, filename):
     return send_file(vp, conditional=True)
 
 if __name__ == '__main__':
-    print(f"✅ Server ----> http://localhost:5000 .")
+    print(f"✅ Server starting in Stable CPU Mode...")
     serve(app, host='0.0.0.0', port=5000, threads=8, connection_limit=200)
