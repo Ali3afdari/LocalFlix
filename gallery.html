@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Local Flix</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0a0a0a;--card:#1e1e1e;--card-hover:#262626;--border:#2a2a2a;--text:#e8e8e8;--text-dim:#a0a0a0;--accent:#2a5298;--accent-light:#3a6ac8;--gradient:linear-gradient(135deg,#1e3c72,#2a5298);--danger:#c62828;--success:#2e7d32}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Roboto',sans-serif;overflow-x:hidden}
+body{display:flex;flex-direction:column;min-height:100vh}
+header{position:sticky;top:0;z-index:100;background:rgba(10,10,10,.95);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.header-left{display:flex;align-items:center;gap:16px}
+.header-title{font-size:22px;font-weight:500;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.header-right{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+button{font-family:inherit;cursor:pointer;border:none;outline:none;transition:all .2s}
+.btn{padding:8px 16px;border-radius:6px;font-size:14px;font-weight:500;color:#fff;background:var(--gradient);display:inline-flex;align-items:center;gap:6px}
+.btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(42,82,152,.4)}
+.btn-secondary{background:var(--card);border:1px solid var(--border);color:var(--text)}
+.btn-secondary:hover{background:var(--card-hover)}
+.btn-icon{width:36px;height:36px;padding:0;border-radius:50%;background:var(--card);color:var(--text);display:inline-flex;align-items:center;justify-content:center;font-size:18px;border:1px solid var(--border)}
+.btn-icon:hover{background:var(--card-hover)}
+input,select{font-family:inherit;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-size:14px;outline:none}
+main{flex:1;padding:24px;max-width:1600px;width:100%;margin:0 auto}
+.view{display:none;animation:fadeIn .3s}.view.active{display:block}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.gallery-list{display:flex;flex-direction:column;gap:12px}
+.gallery-item{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px 20px;display:flex;align-items:center;gap:16px;transition:all .2s;cursor:pointer}
+.gallery-item:hover{background:var(--card-hover);transform:translateX(4px)}
+.gallery-info{flex:1;min-width:0}
+.gallery-name{font-size:16px;font-weight:500;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gallery-meta{font-size:13px;color:var(--text-dim)}
+.empty-state{text-align:center;padding:80px 20px;color:var(--text-dim)}
+.empty-state-icon{font-size:64px;margin-bottom:16px;opacity:.3}
+.controls-bar{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center}
+.search-input{flex:1;min-width:200px}
+.video-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.video-card{background:var(--card);border-radius:10px;overflow:hidden;cursor:pointer;transition:all .25s;position:relative;height:200px}
+.video-card:hover{transform:translateY(-4px);box-shadow:0 12px 24px rgba(0,0,0,.5)}
+.thumb-container{position:relative;width:100%;height:100%;background:#000;overflow:hidden}
+.thumb,.preview-video{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;transition:opacity .6s ease-in-out}
+.thumb{opacity:0;z-index:1}
+.thumb.active{opacity:1;z-index:2}
+.preview-video{z-index:3}
+.spinner{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:32px;height:32px;border:3px solid rgba(255,255,255,.1);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;z-index:4}
+@keyframes spin{to{transform:translate(-50%,-50%) rotate(360deg)}}
+.wait-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.75);color:#fff;font-size:24px;font-weight:bold;z-index:5;pointer-events:none;animation:pulse 1.5s infinite;backdrop-filter:blur(2px)}
+@keyframes pulse{0%{opacity:.6}50%{opacity:1}100%{opacity:.6}}
+.card-overlay{position:absolute;bottom:0;left:0;right:0;padding:12px;background:linear-gradient(transparent,rgba(0,0,0,.9));color:#fff;font-size:14px;font-weight:500;opacity:0;transform:translateY(10px);transition:all .25s;pointer-events:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;z-index:6}
+.video-card:hover .card-overlay{opacity:1;transform:translateY(0)}
+.card-duration{position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,.8);color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;font-weight:500;pointer-events:none;z-index:6}
+.card-size{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.7);color:#fff;padding:2px 6px;border-radius:4px;font-size:11px;pointer-events:none;opacity:0;transition:opacity .25s;z-index:6}
+.video-card:hover .card-size{opacity:1}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(10px);display:none;align-items:center;justify-content:center;z-index:500;padding:20px}
+.modal.active{display:flex}
+.modal-content{background:var(--card);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;max-width:90vw;max-height:90vh;box-shadow:0 20px 60px rgba(0,0,0,.6);position:relative;resize:both}
+.modal-header{padding:12px 16px;background:#151515;display:flex;align-items:center;gap:12px;cursor:move;user-select:none;border-bottom:1px solid var(--border)}
+.modal-title-area{flex:1;min-width:0}
+.modal-title{font-size:15px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.modal-meta{font-size:12px;color:var(--text-dim);margin-top:2px}
+.modal-actions{display:flex;gap:8px}
+.modal-video-container{position:relative;background:#000;flex:1;min-height:400px;min-width:600px;overflow:hidden}
+.modal-video-container.controls-hidden{cursor:none!important}
+.modal-video-container.controls-hidden *{cursor:none!important}
+.modal-video{width:100%;height:100%;display:block}
+.video-controls{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.95));padding:20px 16px 12px;display:flex;flex-direction:column;gap:10px;transition:opacity .3s,transform .3s;z-index:10}
+.video-controls.hidden{opacity:0;pointer-events:none;transform:translateY(10px)}
+.seek-bar-container{position:relative;width:100%;height:20px;display:flex;align-items:center;cursor:pointer;padding:8px 0}
+.seek-bar{width:100%;height:4px;background:rgba(255,255,255,.2);border-radius:2px;position:relative;transition:height .2s}
+.seek-bar-container:hover .seek-bar{height:6px}
+.seek-buffer{position:absolute;top:0;left:0;height:100%;background:rgba(255,255,255,.3);border-radius:2px;width:0}
+.seek-progress{height:100%;background:var(--accent);border-radius:2px;position:relative}
+.seek-handle{position:absolute;right:-7px;top:50%;transform:translateY(-50%) scale(0);width:14px;height:14px;background:var(--accent-light);border-radius:50%;transition:transform .2s}
+.seek-bar-container:hover .seek-handle{transform:translateY(-50%) scale(1)}
+.seek-preview{position:absolute;bottom:32px;transform:translateX(-50%);background:var(--card);border:2px solid var(--border);border-radius:8px;padding:4px;display:none;flex-direction:column;align-items:center;gap:4px;box-shadow:0 8px 24px rgba(0,0,0,.6);pointer-events:none;z-index:20}
+.seek-preview.visible{display:flex}
+.seek-preview-thumb{width:180px;height:101px;background:#000;border-radius:4px;overflow:hidden}
+.seek-preview-thumb canvas{width:100%;height:100%;display:block}
+.seek-preview-time{font-size:12px;color:var(--text);font-weight:500;background:rgba(0,0,0,.6);padding:1px 6px;border-radius:3px}
+.controls-row{display:flex;align-items:center;gap:10px}
+.control-btn{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.1);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;transition:all .2s;flex-shrink:0}
+.control-btn:hover{background:rgba(255,255,255,.2);transform:scale(1.1)}
+.volume-control{display:flex;align-items:center;gap:6px}
+.volume-slider{width:80px;height:4px;background:rgba(255,255,255,.2);border-radius:2px;position:relative;cursor:pointer}
+.volume-progress{height:100%;background:var(--accent);border-radius:2px;width:100%}
+.time-display{font-size:13px;color:var(--text);font-weight:500;margin-left:auto;white-space:nowrap}
+.toast-container{position:fixed;bottom:24px;right:24px;z-index:2000;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{background:var(--card);border:1px solid var(--border);border-left:4px solid var(--accent);padding:12px 16px;border-radius:6px;font-size:14px;min-width:250px;box-shadow:0 8px 24px rgba(0,0,0,.4);animation:toastIn .3s;pointer-events:auto}
+.toast.error{border-left-color:var(--danger)}.toast.success{border-left-color:var(--success)}
+.toast.fade-out{animation:toastOut .3s forwards}
+@keyframes toastIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes toastOut{to{transform:translateX(100%);opacity:0}}
+:fullscreen .modal-content{max-width:100vw;max-height:100vh;width:100vw;height:100vh;border-radius:0;resize:none}
+:fullscreen .modal-header{display:none}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <div class="header-left">
+    <button id="backBtn" class="btn-icon hidden" title="Back">←</button>
+    <div class="header-title">🎬 Local Flix</div>
+  </div>
+  <div class="header-right"><button id="refreshBtn" class="btn btn-secondary">🔄 Refresh</button></div>
+</header>
+<main>
+  <section id="galleryListView" class="view active"><div id="galleryList" class="gallery-list"></div></section>
+  <section id="videoGridView" class="view">
+    <div class="controls-bar">
+      <input type="search" id="searchInput" class="search-input" placeholder="Search videos...">
+      <select id="sortSelect">
+        <option value="name">Name (A-Z)</option>
+        <option value="length">Length</option>
+        <option value="size">Size</option>
+        <option value="date">Date</option>
+        <option value="random">Random</option>
+      </select>
+      <button id="rescanBtn" class="btn btn-secondary">🔄 Rescan</button>
+      <button id="galleryInfoBtn" class="btn btn-secondary">ℹ️ Info</button>
+    </div>
+    <div id="videoGrid" class="video-grid"></div>
+  </section>
+</main>
+<div id="modal" class="modal">
+  <div class="modal-content" id="modalContent">
+    <div class="modal-header" id="modalHeader">
+      <div class="modal-title-area"><div class="modal-title" id="modalTitle"></div><div class="modal-meta" id="modalMeta"></div></div>
+      <div class="modal-actions">
+        <button id="pipBtn" class="btn-icon" title="PiP">⧉</button>
+        <button id="fullscreenBtn" class="btn-icon" title="Fullscreen (F)">⛶</button>
+        <button id="closeModalBtn" class="btn-icon" title="Close (Esc)">✕</button>
+      </div>
+    </div>
+    <div class="modal-video-container" id="videoContainer">
+      <video id="modalVideo" class="modal-video"></video>
+      <div class="video-controls" id="videoControls">
+        <div class="seek-bar-container" id="seekBarContainer">
+          <div class="seek-bar"><div class="seek-buffer" id="seekBuffer"></div><div class="seek-progress" id="seekProgress"><div class="seek-handle"></div></div></div>
+          <div class="seek-preview" id="seekPreview">
+            <div class="seek-preview-thumb"><canvas id="seekPreviewCanvas" width="320" height="180"></canvas></div>
+            <div class="seek-preview-time" id="seekPreviewTime">0:00</div>
+          </div>
+        </div>
+        <div class="controls-row">
+          <button class="control-btn" id="playPauseBtn">▶</button>
+          <button class="control-btn" id="prevBtn">⏮</button>
+          <button class="control-btn" id="nextBtn">⏭</button>
+          <div class="volume-control"><button class="control-btn" id="volumeBtn">🔊</button><div class="volume-slider" id="volumeSlider"><div class="volume-progress" id="volumeProgress"></div></div></div>
+          <div class="time-display" id="timeDisplay">0:00 / 0:00</div>
+          <button class="control-btn" id="fullscreenControlBtn">⛶</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="toastContainer" class="toast-container"></div>
+<video id="seekPreviewVideo" style="display:none; position:fixed; top:-9999px; left:-9999px; width:1px; height:1px;" muted playsinline crossorigin="anonymous"></video>
+
+<script>
+'use strict';
+const S = {
+  view:'galleries', gallery:null, videos:[], filtered:[], sort:'name', query:'',
+  modalOpen:false, modalIdx:-1, observer:null, dragging:false, tmlNames:new Set(),
+  ready:new Set(), processing:new Set()
+};
+const PCTS=[.10,.25,.50,.70,.90], HIDE_DELAY=5000;
+let statusPoller = null;
+let hoverIntervals = new Map();
+
+const fmt=s=>{if(!s)return'0:00';const h=Math.floor(s/3600),m=Math.floor(s%3600/60),sec=Math.floor(s%60);return h?`${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`:`${m}:${String(sec).padStart(2,'0')}`};
+const fmtB=b=>{if(!b)return'0 B';const u=['B','KB','MB','GB'];let i=0;while(b>=1024&&i<3){b/=1024;i++}return`${b.toFixed(i?1:0)} ${u[i]}`};
+
+function toast(m,t='info'){const e=document.createElement('div');e.className=`toast ${t}`;e.textContent=m;document.getElementById('toastContainer').appendChild(e);setTimeout(()=>{e.classList.add('fade-out');setTimeout(()=>e.remove(),300)},3500)}
+function showWaitOverlay(card) {
+  if (card.querySelector('.wait-overlay')) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'wait-overlay'; overlay.textContent = 'Wait!';
+  card.querySelector('.thumb-container').appendChild(overlay);
+}
+
+const apiGalleries = async () => (await fetch('/api/galleries')).json();
+const apiSync = async g => (await fetch(`/api/galleries/${encodeURIComponent(g)}/sync`, {method:'POST'})).json();
+const apiStatus = async g => (await fetch(`/api/galleries/${encodeURIComponent(g)}/status`)).json();
+const apiTmlNames = async g => new Set((await fetch(`/api/galleries/${encodeURIComponent(g)}/tml-names`)).json());
+
+async function apiBatchThumbs(gallery, videos) {
+  try {
+    return await (await fetch(`/api/galleries/${encodeURIComponent(gallery)}/thumbs/batch`, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({videos})
+    })).json();
+  } catch(e) { return {results:[]}; }
+}
+
+function thumbUrl(base, i) {
+  const f = `${base}_${i}.jpg`;
+  if (S.tmlNames.size > 0 && !S.tmlNames.has(f.toLowerCase())) return null;
+  return `/api/galleries/${encodeURIComponent(S.gallery)}/tml/${encodeURIComponent(f)}`;
+}
+function videoUrl(n) { return `/api/galleries/${encodeURIComponent(S.gallery)}/video/${encodeURIComponent(n)}`; }
+
+function cycleThumb(card, random = false) {
+    if (!card.dataset.loaded) return 0;
+    let ci = parseInt(card.dataset.ci || '2');
+    let nextCi;
+    if (random) { do { nextCi = Math.floor(Math.random() * 5); } while (nextCi === ci); }
+    else { nextCi = (ci + 1) % 5; }
+    const currentImg = card.querySelector(`.thumb-${ci + 1}`);
+    const nextImg = card.querySelector(`.thumb-${nextCi + 1}`);
+    if (currentImg) currentImg.classList.remove('active');
+    if (nextImg) nextImg.classList.add('active');
+    card.dataset.ci = nextCi.toString();
+    return nextCi;
+}
+
+async function renderGalleries() {
+  const el = document.getElementById('galleryList'); el.innerHTML = '';
+  const gs = await apiGalleries();
+  if (!gs.length) { el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📁</div><div class="empty-state-title">No galleries</div></div>'; return; }
+  gs.forEach(n => {
+    const d = document.createElement('div'); d.className = 'gallery-item';
+    d.innerHTML = `<div class="gallery-info"><div class="gallery-name">${n}</div><div class="gallery-meta">Click to open</div></div>`;
+    d.onclick = () => openGallery(n); el.appendChild(d);
+  });
+}
+
+async function openGallery(name) {
+  if (statusPoller) clearInterval(statusPoller);
+  S.gallery = name;
+  const syncData = await apiSync(name);
+  S.videos = syncData.videos.map(v => ({...v, id: v.baseName + Math.random().toString(36).substr(2,9), duration:0}));
+  S.ready = new Set(syncData.ready);
+  S.processing = new Set(syncData.processing);
+  S.filtered = [...S.videos];
+  applySort(); switchView('videos'); renderGrid();
+  S.tmlNames = await apiTmlNames(name);
+  setupObserver();
+  statusPoller = setInterval(pollStatus, 2000);
+}
+
+async function pollStatus() {
+  if (!S.gallery) return;
+  try {
+    const data = await apiStatus(S.gallery);
+    const newReady = new Set(data.ready);
+    const newProcessing = new Set(data.processing);
+    document.querySelectorAll('.video-card').forEach(card => {
+      const base = card.dataset.base;
+      if (S.processing.has(base) && newReady.has(base)) {
+        card.querySelector('.wait-overlay')?.remove();
+        loadThumbs(card);
+      } else if (!S.processing.has(base) && newProcessing.has(base)) {
+        showWaitOverlay(card);
+      } else if (newReady.has(base) && !card.dataset.loaded) {
+        loadThumbs(card);
+      }
+    });
+    S.ready = newReady; S.processing = newProcessing;
+    if (S.processing.size === 0) { clearInterval(statusPoller); statusPoller = null; }
+  } catch(e) {}
+}
+
+function switchView(v) {
+  S.view = v;
+  document.getElementById('galleryListView').classList.toggle('active', v==='galleries');
+  document.getElementById('videoGridView').classList.toggle('active', v==='videos');
+  document.getElementById('backBtn').classList.toggle('hidden', v==='galleries');
+  if (v==='galleries') { cleanup(); S.tmlNames=new Set(); S.ready=new Set(); S.processing=new Set(); }
+}
+
+function applySort() {
+  let f = S.videos.filter(v => !S.query || v.name.toLowerCase().includes(S.query.toLowerCase()));
+  if(S.sort==='name') f.sort((a,b)=>a.name.localeCompare(b.name));
+  else if(S.sort==='length') f.sort((a,b)=>(b.duration||0)-(a.duration||0));
+  else if(S.sort==='size') f.sort((a,b)=>b.size-a.size);
+  else if(S.sort==='random') f.sort(()=>Math.random()-.5);
+  S.filtered = f;
+}
+
+function createCard(v, globalIdx) {
+    const c = document.createElement('div'); c.className='video-card'; c.dataset.vid=v.id; c.dataset.base=v.baseName; c.dataset.globalIdx=globalIdx;
+    c.innerHTML=`
+        <div class="thumb-container">
+            <div class="spinner"></div>
+            <img class="thumb thumb-1" alt="">
+            <img class="thumb thumb-2" alt="">
+            <img class="thumb thumb-3" alt="">
+            <img class="thumb thumb-4" alt="">
+            <img class="thumb thumb-5" alt="">
+            <div class="card-size">${fmtB(v.size)}</div>
+            <div class="card-overlay">${v.name}</div>
+            <div class="card-duration">${fmt(v.duration)}</div>
+        </div>
+    `;
+    c.onclick=()=>openModal(globalIdx);
+    c.onmouseenter=()=>hoverIn(c,v);
+    c.onmouseleave=()=>hoverOut(c);
+    if (S.processing.has(v.baseName)) showWaitOverlay(c);
+    return c;
+}
+
+async function renderGrid() {
+  cleanup();
+  const g = document.getElementById('videoGrid'); g.innerHTML = '';
+  S.filtered.forEach((v, i) => {
+      const globalIdx = S.videos.indexOf(v);
+      g.appendChild(createCard(v, globalIdx));
+  });
+  setupObserver(); startGlobalCycle();
+}
+
+let pendingBatch = [], batchTimer = null;
+function setupObserver() {
+  if (S.observer) S.observer.disconnect();
+  S.observer = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        const card = e.target; const base = card.dataset.base;
+        if (S.ready.has(base)) loadThumbs(card);
+        else if (S.processing.has(base)) showWaitOverlay(card);
+        else queueBatch(card);
+      } else offload(e.target);
+    });
+  }, {threshold:0.1, rootMargin:'200px'});
+  document.querySelectorAll('.video-card').forEach(c => S.observer.observe(c));
+}
+
+function loadThumbs(card) {
+    if (card.dataset.loaded) return;
+    const base = card.dataset.base;
+    const v = S.videos.find(x => x.baseName === base); if(!v) return;
+    let loadedCount = 0;
+    for (let i = 1; i <= 5; i++) {
+        const url = thumbUrl(base, i);
+        const img = card.querySelector(`.thumb-${i}`);
+        if (!url || !img) { loadedCount++; continue; }
+        img.onload = img.onerror = () => {
+            loadedCount++;
+            if (i === 3) {
+                img.classList.add('active');
+                card.querySelector('.spinner')?.remove();
+                card.querySelector('.wait-overlay')?.remove();
+            }
+            if (loadedCount === 5) {
+                card.dataset.loaded = '1';
+                card.dataset.ci = '2';
+            }
+        };
+        img.src = url;
+    }
+}
+
+function offload(card) {
+    card.querySelectorAll('.thumb').forEach(img => { img.src = ''; img.classList.remove('active'); });
+    delete card.dataset.loaded; delete card.dataset.ci;
+}
+
+function queueBatch(card) {
+  const base = card.dataset.base;
+  const v = S.videos.find(x => x.baseName === base);
+  if (!v || card.dataset.genRequested) return;
+  card.dataset.genRequested = '1';
+  pendingBatch.push({card, video: v});
+  if (!batchTimer) batchTimer = setTimeout(flushBatch, 100);
+}
+
+async function flushBatch() {
+  batchTimer = null;
+  if (!pendingBatch.length || !S.gallery) return;
+  const batch = pendingBatch.splice(0, 5);
+  const videosForServer = batch.map(b => ({name: b.video.name, baseName: b.video.baseName}));
+  const data = await apiBatchThumbs(S.gallery, videosForServer);
+  if (data.results) {
+    for (const r of data.results) {
+      if (r.success && r.metadata) {
+        const v = S.videos.find(x => x.name === r.name);
+        if (v) v.duration = r.metadata.duration || 0;
+        const b = batch.find(x => x.video.name === r.name);
+        if (b) {
+          b.card.dataset.genDone = '1';
+          const dur = b.card.querySelector('.card-duration');
+          if (dur) dur.textContent = fmt(r.metadata.duration);
+          for (let i = 1; i <= 5; i++) S.tmlNames.add(`${b.video.baseName}_${i}.jpg`.toLowerCase());
+          loadThumbs(b.card);
+        }
+      }
+    }
+  }
+  if (pendingBatch.length) batchTimer = setTimeout(flushBatch, 50);
+}
+
+let cycleInterval = null;
+function startGlobalCycle() {
+  if (cycleInterval) return;
+  cycleInterval = setInterval(() => {
+    if (S.modalOpen) return;
+    document.querySelectorAll('.video-card').forEach(card => {
+      if (card.dataset.hovering==='1' || !card.dataset.loaded) return;
+      cycleThumb(card, false);
+    });
+  }, 5000);
+}
+function stopCycle(){if(cycleInterval){clearInterval(cycleInterval);cycleInterval=null}}
+
+let activePreview = null, activeCard = null;
+function hoverIn(card, v) {
+  if (activePreview && activeCard !== card) {
+    activePreview.pause(); activePreview.removeAttribute('src'); activePreview.load();
+    if(activePreview.parentNode) activePreview.remove();
+    activePreview=null; activeCard=null;
+  }
+  card.dataset.hovering='1';
+  let pv = card.querySelector('.preview-video');
+  if(!pv){
+    pv=document.createElement('video');pv.className='preview-video';
+    pv.muted=true;pv.loop=true;pv.playsInline=true;
+    card.querySelector('.thumb-container').appendChild(pv);
+  }
+  activePreview=pv; activeCard=card;
+  pv.src=videoUrl(v.name);
+  pv.onloadeddata=async()=>{
+    if(card.dataset.hovering!=='1'){pv.pause();pv.remove();return}
+    const latestIdx = parseInt(card.dataset.ci||'2');
+    if(pv.duration&&isFinite(pv.duration)) pv.currentTime = pv.duration * PCTS[latestIdx];
+    await pv.play().catch(()=>{});
+    pv.style.opacity='0.85';
+  };
+
+  const interval = setInterval(() => {
+    if (card.dataset.hovering !== '1' || !card.dataset.loaded) return;
+    const newCi = cycleThumb(card, true);
+    if (pv.duration && isFinite(pv.duration)) pv.currentTime = pv.duration * PCTS[newCi];
+  }, 5000);
+  hoverIntervals.set(card.dataset.vid, interval);
+}
+
+function hoverOut(card) {
+  card.dataset.hovering='0';
+  const pv=card.querySelector('.preview-video');
+  if(pv){
+    pv.pause();pv.style.opacity='0';
+    setTimeout(()=>{ if(card.dataset.hovering!=='1'&&pv.parentNode){ pv.removeAttribute('src');pv.load();pv.remove(); } },400);
+  }
+  if(activeCard===card){activePreview=null;activeCard=null}
+  const interval = hoverIntervals.get(card.dataset.vid);
+  if (interval) { clearInterval(interval); hoverIntervals.delete(card.dataset.vid); }
+}
+
+function cleanup() {
+  stopCycle();
+  if(statusPoller){clearInterval(statusPoller);statusPoller=null}
+  if(S.observer){S.observer.disconnect();S.observer=null}
+  if(activePreview){activePreview.pause();activePreview.removeAttribute('src');activePreview.load();activePreview=null;activeCard=null}
+  hoverIntervals.forEach(i => clearInterval(i)); hoverIntervals.clear();
+  pendingBatch=[];if(batchTimer){clearTimeout(batchTimer);batchTimer=null}
+}
+
+let hideTimer=null;
+function openModal(globalIdx) {
+  if(globalIdx<0||globalIdx>=S.videos.length)return;
+  const el=document.getElementById('modalVideo');el.pause();el.removeAttribute('src');el.load();
+  S.modalIdx=globalIdx;S.modalOpen=true;
+  const v=S.videos[globalIdx];
+  el.src=videoUrl(v.name);el.load();
+  const seekPreviewVideo = document.getElementById('seekPreviewVideo');
+  seekPreviewVideo.pause(); seekPreviewVideo.removeAttribute('src'); seekPreviewVideo.load();
+  seekPreviewVideo.src = videoUrl(v.name); seekPreviewVideo.preload = 'auto'; seekPreviewVideo.load();
+  document.getElementById('modalTitle').textContent=v.name;
+  document.getElementById('modalMeta').textContent=`${fmt(v.duration)} • ${fmtB(v.size)}`;
+  document.getElementById('modal').classList.add('active');
+  document.body.style.overflow='hidden';
+  stopCycle();
+  el.play().catch(()=>{});
+  updPP();showCtrl();
+}
+function closeModal() {
+  const el=document.getElementById('modalVideo');el.pause();el.removeAttribute('src');el.load();
+  const seekPreviewVideo = document.getElementById('seekPreviewVideo');
+  seekPreviewVideo.pause(); seekPreviewVideo.removeAttribute('src'); seekPreviewVideo.load();
+  document.getElementById('videoContainer').classList.remove('controls-hidden');
+  document.getElementById('modal').classList.remove('active');
+  document.body.style.overflow='';S.modalOpen=false;
+  if(document.fullscreenElement)document.exitFullscreen();
+  clearTimeout(hideTimer);startGlobalCycle();
+}
+function updPP(){document.getElementById('playPauseBtn').textContent=document.getElementById('modalVideo').paused?'▶':'⏸'}
+function updSeek(){const v=document.getElementById('modalVideo');if(!v.duration)return;document.getElementById('seekProgress').style.width=(v.currentTime/v.duration)*100+'%';document.getElementById('timeDisplay').textContent=`${fmt(v.currentTime)} / ${fmt(v.duration)}`}
+function updVol(){const v=document.getElementById('modalVideo');document.getElementById('volumeProgress').style.width=(v.muted?0:v.volume*100)+'%';document.getElementById('volumeBtn').textContent=v.muted||!v.volume?'🔇':v.volume<.5?'🔉':'🔊'}
+function showCtrl(){
+  const c=document.getElementById('videoControls'),ct=document.getElementById('videoContainer');
+  c.classList.remove('hidden');ct.classList.remove('controls-hidden');
+  clearTimeout(hideTimer);
+  if(S.modalOpen)hideTimer=setTimeout(()=>{c.classList.add('hidden');ct.classList.add('controls-hidden')},HIDE_DELAY);
+}
+
+function setupControls(){
+  const v=document.getElementById('modalVideo'),sb=document.getElementById('seekBarContainer'),vs=document.getElementById('volumeSlider');
+  const seekPreview = document.getElementById('seekPreview'), seekPreviewCanvas = document.getElementById('seekPreviewCanvas');
+  const seekPreviewTime = document.getElementById('seekPreviewTime'), seekPreviewVideo = document.getElementById('seekPreviewVideo');
+  const ctx = seekPreviewCanvas.getContext('2d');
+  let seeking=false, vdrag=false, seekThrottle=null, lastSeekTime=-1;
+  document.getElementById('playPauseBtn').onclick=()=>{v.paused?v.play():v.pause();showCtrl()};
+  v.onclick=()=>{v.paused?v.play():v.pause();showCtrl()};
+  v.onplay=updPP;v.onpause=updPP;v.ontimeupdate=updSeek;v.onloadedmetadata=updSeek;
+  document.getElementById('nextBtn').onclick=()=>{if(S.modalIdx<S.videos.length-1)openModal(S.modalIdx+1);showCtrl()};
+  document.getElementById('prevBtn').onclick=()=>{if(S.modalIdx>0)openModal(S.modalIdx-1);showCtrl()};
+  const gp=e=>{const r=sb.getBoundingClientRect();return Math.max(0,Math.min(1,(e.clientX-r.left)/r.width))};
+  sb.onmousedown=e=>{seeking=true;v.currentTime=gp(e)*v.duration;showCtrl()};
+  document.onmousemove=e=>{
+    if(seeking){v.currentTime=gp(e)*v.duration;updSeek()}
+    if(vdrag){const r=vs.getBoundingClientRect();v.volume=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));v.muted=false;updVol()}
+  };
+  document.onmouseup=()=>{seeking=false;vdrag=false};
+  sb.onmousemove = (e) => {
+    if (!v.duration) return;
+    const targetTime = gp(e) * v.duration;
+    seekPreview.style.left = (e.clientX - sb.getBoundingClientRect().left) + 'px';
+    seekPreviewTime.textContent = fmt(targetTime);
+    seekPreview.classList.add('visible');
+    if (Math.abs(targetTime - lastSeekTime) < 0.1) return;
+    lastSeekTime = targetTime;
+    if (seekThrottle) clearTimeout(seekThrottle);
+    seekThrottle = setTimeout(() => {
+      const clampedTime = Math.max(0, Math.min(targetTime, seekPreviewVideo.duration - 0.01));
+      if (Math.abs(seekPreviewVideo.currentTime - clampedTime) < 0.1 && seekPreviewVideo.readyState >= 2) drawFrame();
+      else {
+        const onSeeked = () => { seekPreviewVideo.removeEventListener('seeked', onSeeked); requestAnimationFrame(drawFrame); };
+        seekPreviewVideo.addEventListener('seeked', onSeeked);
+        try { seekPreviewVideo.currentTime = clampedTime; } catch(err) {}
+      }
+    }, 50);
+  };
+  sb.onmouseleave = () => { if (!seeking) { seekPreview.classList.remove('visible'); lastSeekTime = -1; } };
+  function drawFrame() {
+    const vw = seekPreviewVideo.videoWidth, vh = seekPreviewVideo.videoHeight;
+    if (!vw || !vh) return;
+    const cw = seekPreviewCanvas.width, ch = seekPreviewCanvas.height;
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, cw, ch);
+    const va = vw / vh, ca = cw / ch;
+    let dw, dh, dx, dy;
+    if (va > ca) { dw = cw; dh = cw / va; dx = 0; dy = (ch - dh) / 2; }
+    else { dh = ch; dw = ch * va; dy = 0; dx = (cw - dw) / 2; }
+    ctx.drawImage(seekPreviewVideo, dx, dy, dw, dh);
+  }
+  document.getElementById('volumeBtn').onclick=()=>{v.muted=!v.muted;updVol();showCtrl()};
+  vs.onmousedown=()=>{vdrag=true};v.onvolumechange=updVol;
+  const fs=()=>{const c=document.getElementById('modalContent');document.fullscreenElement?document.exitFullscreen():c.requestFullscreen()};
+  document.getElementById('fullscreenControlBtn').onclick=()=>{fs();showCtrl()};
+  document.getElementById('fullscreenBtn').onclick=fs;
+  document.getElementById('pipBtn').onclick=()=>{document.pictureInPictureElement?document.exitPictureInPicture():v.requestPictureInPicture().catch(()=>{})};
+  document.getElementById('modalContent').onmousemove=()=>{if(S.modalOpen)showCtrl()};
+  document.onfullscreenchange=()=>{if(S.modalOpen)showCtrl()};
+  v.ondblclick=e=>{e.preventDefault();fs()};
+  updVol();
+}
+
+document.addEventListener('DOMContentLoaded',async()=>{
+  await renderGalleries();
+  document.getElementById('refreshBtn').onclick=renderGalleries;
+  document.getElementById('backBtn').onclick=()=>{cleanup();switchView('galleries');renderGalleries()};
+  document.getElementById('searchInput').oninput=e=>{S.query=e.target.value;applySort();renderGrid()};
+  document.getElementById('sortSelect').onchange=e=>{S.sort=e.target.value;applySort();renderGrid()};
+  document.getElementById('rescanBtn').onclick=async()=>{
+    if(!S.gallery)return;
+    const syncData = await apiSync(S.gallery);
+    S.ready = new Set(syncData.ready); S.processing = new Set(syncData.processing);
+    document.querySelectorAll('.video-card').forEach(c=>{
+      delete c.dataset.genRequested; delete c.dataset.loaded;
+      c.querySelectorAll('.thumb').forEach(img => { img.src = ''; img.classList.remove('active'); });
+      c.querySelector('.wait-overlay')?.remove();
+      if (S.processing.has(c.dataset.base)) showWaitOverlay(c);
+    });
+    setupObserver();
+    toast('Syncing...','info');
+  };
+  document.getElementById('galleryInfoBtn').onclick=()=>{
+    if(!S.gallery)return;
+    const ts=S.videos.reduce((s,v)=>s+v.size,0),td=S.videos.reduce((s,v)=>s+(v.duration||0),0);
+    alert(`Gallery: ${S.gallery}\nVideos: ${S.videos.length}\nSize: ${fmtB(ts)}\nDuration: ${fmt(td)}`);
+  };
+  document.getElementById('closeModalBtn').onclick=closeModal;
+  document.getElementById('modal').onclick=e=>{if(e.target.id==='modal')closeModal()};
+  setupControls();
+  document.onkeydown=e=>{
+    if(e.target.tagName==='INPUT')return;
+    if(S.modalOpen){
+      showCtrl();
+      if(e.key==='Escape')document.fullscreenElement?document.exitFullscreen():closeModal();
+      if(e.key===' '){e.preventDefault();const v=document.getElementById('modalVideo');v.paused?v.play():v.pause()}
+      if(e.key==='ArrowRight'){e.preventDefault();S.modalIdx<S.videos.length-1&&openModal(S.modalIdx+1)}
+      if(e.key==='ArrowLeft'){e.preventDefault();S.modalIdx>0&&openModal(S.modalIdx-1)}
+      if(e.key==='f')document.getElementById('fullscreenControlBtn').click();
+      if(e.key==='m'){const v=document.getElementById('modalVideo');v.muted=!v.muted;updVol()}
+    }else if(e.key==='Escape'&&S.view==='videos'){cleanup();switchView('galleries');renderGalleries()}
+  };
+});
+</script>
+</body>
+</html>
