@@ -55,19 +55,7 @@ git clone https://github.com/yourusername/localflix.git
 cd localflix
 
 2. Add your videos
-Place your video folders inside the media directory (it will be auto-created on first run if missing):
-
-localflix/
-├── server.py
-├── gallery.html
-├── start.sh          <-- Linux / macOS launcher
-├── start.bat         <-- Windows launcher
-└── media/            <-- Put your videos here
-    ├── Vacation 2026/
-    │   ├── clip1.mp4
-    │   └── clip2.mp4
-    └── Tutorials/
-        └── python.mp4
+Place your video folders inside the media directory (it will be auto-created on first run if missing then restart the app):
 
 3. Run the launcher
 🐧 Linux / macOS
